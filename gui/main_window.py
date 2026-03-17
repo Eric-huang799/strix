@@ -53,8 +53,8 @@ class StrixGUI:
         self.root.minsize(800, 600)
         self.root.configure(bg=ModernStyle.BG_PRIMARY)
         
-        # 设置图标（如果有的话）
-        # self.root.iconbitmap("strix.ico")
+        # 设置窗口图标
+        self._set_window_icon()
         
         # 初始化核心组件
         self.crawler = None
@@ -73,6 +73,28 @@ class StrixGUI:
         
         # 加载插件信息
         self._refresh_plugin_info()
+    
+    def _set_window_icon(self):
+        """设置窗口图标 - 支持开发和打包后运行"""
+        try:
+            # 获取可能的图标路径列表
+            possible_paths = [
+                # 当前目录（打包后）
+                Path("strix.ico"),
+                Path("resources/strix.ico"),
+                # 脚本所在目录（开发时）
+                Path(__file__).parent.parent / "resources" / "strix.ico",
+                Path(__file__).parent.parent / "strix.ico",
+            ]
+            
+            # 尝试加载第一个存在的图标
+            for icon_path in possible_paths:
+                if icon_path.exists():
+                    self.root.iconbitmap(str(icon_path))
+                    break
+        except Exception:
+            # 图标加载失败不影响程序运行
+            pass
     
     def _setup_styles(self):
         """配置ttk样式"""
