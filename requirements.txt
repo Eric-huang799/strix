@@ -1,0 +1,21 @@
+# Strix v2 依赖列表
+# 安装: pip install -r requirements.txt
+
+# GUI框架
+PyQt6>=6.4.0
+PyQt6-Qt6>=6.4.0
+
+# 网络请求
+requests>=2.28.0
+urllib3>=1.26.0
+
+# 工具库
+beautifulsoup4>=4.11.0
+lxml>=4.9.0
+
+# 可选：浏览器渲染（高级反爬）
+# playwright>=1.30.0
+
+# 开发依赖（可选）
+# pytest>=7.0.0
+# black>=22.0.0

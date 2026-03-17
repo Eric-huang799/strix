@@ -1,203 +1,80 @@
-# Strix v2.0 插件编写指南
+# Strix 插件开发指南
 
-## 📚 简介
+## 快速开始（2分钟）
 
-Strix 支持通过插件扩展功能，可以为特定网站编写自定义爬取逻辑。
-
-## 🚀 快速开始
-
-### 1. 创建插件文件
-
-在 `plugins` 文件夹中创建新的 `.py` 文件，例如 `plugin_mywebsite.py`。
-
-### 2. 编写插件代码
+最简单的方式：复制 `plugins/plugin_simple_template.py`，改4个地方就行：
 
 ```python
-"""
-我的网站插件
-"""
+NAME = "你的插件名称"                           # 1. 改名字
+DOMAINS = ["site.com", "www.site.com"]         # 2. 改域名
 
+def can_handle(url):                           # 3. 判断URL
+    return "site.com" in url
 
-class MyWebsitePlugin:
-    """自定义网站爬取插件"""
-    
-    @property
-    def name(self):
-        """插件名称（显示用）"""
-        return "我的网站解析器"
-    
-    @property
-    def domains(self):
-        """
-        支持的域名列表
-        当URL包含这些域名时，会优先使用此插件
-        """
-        return ['mywebsite.com', 'www.mywebsite.com']
-    
-    def can_handle(self, url):
-        """检查是否可以处理该URL"""
-        return any(domain in url for domain in self.domains)
-    
-    def extract(self, crawler, url, html):
-        """
-        执行自定义提取
-        
-        参数:
-            crawler: 爬虫实例，可用方法：
-                - crawler.session      # requests.Session
-                - crawler.log("消息")   # 输出日志
-            
-            url: 当前网址
-            html: 页面HTML源码
-        
-        返回:
-            {
-                'images': ['图片URL1', '图片URL2', ...],
-                'videos': ['视频URL1', ...],
-                'text': '提取的文本内容'
-            }
-        """
-        import re
-        
-        # 输出日志
-        crawler.log(f"正在解析: {url}")
-        
-        images = []
-        videos = []
-        
-        # 使用正则提取图片
-        for img_url in re.findall(r'src="(https?://[^"]+\.(?:jpg|png|gif))"', html):
-            images.append(img_url)
-        
-        # 提取标题
-        title_match = re.search(r'<h1[^>]*>([^<]+)</h1>', html)
-        title = title_match.group(1) if title_match else "无标题"
-        
-        # 提取正文
-        content_match = re.search(r'<div class="content">(.*?)</div>', html, re.DOTALL)
-        content = content_match.group(1) if content_match else ""
-        content = re.sub(r'<[^>]+>', '', content)  # 去除HTML标签
-        
-        return {
-            'images': images,
-            'videos': videos,
-            'text': f"{title}\n\n{content}"
-        }
+def extract(crawler, url, html):               # 4. 写提取逻辑
+    # 用正则或BeautifulSoup提取内容
+    return {'images': [...], 'videos': [...], 'text': '...'}
 ```
 
-### 3. 重启 Strix
+保存为 `plugins/my_site.py`，重启 Strix 即可！
 
-插件会自动加载，无需额外配置。
+---
 
-## 📖 API 参考
+## 完整示例：B站适配器
 
-### crawler 对象
+参见 `plugin_bilibili.py`，展示了：
+- 处理多种URL格式 (bilibili.com, b23.tv)
+- 解析JSON数据
+- 处理特殊请求头
+- 调用API获取视频信息
 
-| 属性/方法 | 说明 | 示例 |
-|-----------|------|------|
-| `crawler.session` | requests.Session 对象 | `resp = crawler.session.get(url)` |
-| `crawler.log(msg, level)` | 输出日志 | `crawler.log("成功", "success")` |
-| `crawler.download_file(url, folder, filename)` | 下载文件 | `crawler.download_file(img_url, "images")` |
+---
 
-### 日志级别
+## API 参考
 
-- `'info'` - 普通信息（蓝色）
-- `'success'` - 成功（绿色）
-- `'warning'` - 警告（黄色）
-- `'error'` - 错误（红色）
-
-## 💡 示例插件
-
-### 图片站插件
+### crawler 对象可用方法
 
 ```python
-class ImageSitePlugin:
-    @property
-    def name(self):
-        return "图片站解析器"
-    
-    @property
-    def domains(self):
-        return ['picsite.com']
-    
-    def can_handle(self, url):
-        return 'picsite.com' in url
-    
-    def extract(self, crawler, url, html):
-        import re
-        from urllib.parse import urljoin
-        
-        images = []
-        
-        # 提取所有高清图片
-        for img_path in re.findall(r'data-original="([^"]+)"', html):
-            full_url = urljoin(url, img_path)
-            images.append(full_url)
-        
-        crawler.log(f"发现 {len(images)} 张图片", "success")
-        
-        return {
-            'images': images,
-            'videos': [],
-            'text': ''
-        }
+# 发送HTTP请求
+response = crawler.session.get(url, headers=...)
+
+# 记录日志（会显示在GUI中）
+crawler.log("消息", level="info")   # level: info/warning/error
+
+# 下载文件
+crawler.download_file(url, folder="images", filename="xxx.jpg")
+
+# 随机延迟（防封）
+crawler._random_delay(0.5, 2.0)
 ```
 
-### 视频站插件（带m3u8支持）
+### 返回值格式
 
 ```python
-class VideoSitePlugin:
-    @property
-    def name(self):
-        return "视频站解析器"
-    
-    @property
-    def domains(self):
-        return ['videosite.com']
-    
-    def can_handle(self, url):
-        return 'videosite.com' in url
-    
-    def extract(self, crawler, url, html):
-        import re
-        
-        videos = []
-        
-        # 查找m3u8链接
-        m3u8_match = re.search(r'"url":"([^"]+\.m3u8)"', html)
-        if m3u8_match:
-            m3u8_url = m3u8_match.group(1).replace('\\/', '/')
-            videos.append(m3u8_url)
-            crawler.log(f"找到m3u8: {m3u8_url}", "success")
-        
-        return {
-            'images': [],
-            'videos': videos,
-            'text': ''
-        }
+{
+    'images': ['https://.../1.jpg', 'https://.../2.png'],  # 图片URL列表
+    'videos': ['https://.../video.mp4'],                    # 视频URL列表  
+    'text': '页面文本内容'                                   # 提取的文本
+}
 ```
 
-## 🔧 调试技巧
+---
 
-1. **查看日志**: 插件中的 `crawler.log()` 会显示在主界面
-2. **打印变量**: 使用 `crawler.log(f"变量值: {variable}")`
-3. **检查HTML**: 可以先保存HTML到文件查看结构
+## 调试技巧
 
-## ⚠️ 常见问题
+1. **打印调试**: 在 extract() 里用 `print()` 输出变量
+2. **查看HTML**: 先 `print(html[:1000])` 看看页面结构
+3. **浏览器F12**: 在浏览器开发者工具里找到元素的选择器
 
-### 插件未加载
-- 检查文件名是否以 `plugin_` 开头
-- 检查类是否继承了正确的基类
-- 查看日志中的加载错误信息
+---
 
-### 提取失败
-- 使用 `crawler.log()` 输出调试信息
-- 检查正则表达式是否正确
-- 确认HTML结构是否与预期一致
+## 常见问题
 
-## 📞 帮助
+**Q: 插件没加载？**  
+A: 检查：1) 文件在 plugins/ 目录 2) 文件后缀是 .py 3) 语法没错误
 
-如有问题，请检查：
-1. `plugins/plugin_template.py` - 官方模板
-2. `plugins/plugin_bilibili.py` - B站示例
-3. 日志窗口的加载报告
+**Q: 怎么提取特定class的元素？**  
+A: 用 BeautifulSoup: `soup.find('div', class_='content')`
+
+**Q: 需要登录/Cookie怎么办？**  
+A: 可以在 extract() 里用 `crawler.session.headers.update({'Cookie': '...'})`
