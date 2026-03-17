@@ -471,7 +471,8 @@ class StrixGUI:
                 success = self.crawler.crawl(url, options)
                 self.root.after(0, lambda: self._crawl_finished(success))
             except Exception as e:
-                self.root.after(0, lambda: self._log(f"❌ 错误: {str(e)}", 'error'))
+                error_msg = str(e)
+                self.root.after(0, lambda: self._log(f"❌ 错误: {error_msg}", 'error'))
                 self.root.after(0, lambda: self._crawl_finished(False))
         
         threading.Thread(target=crawl_thread, daemon=True).start()
